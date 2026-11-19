@@ -321,8 +321,14 @@ alter table public.ledger_entries   enable row level security;
 alter table public.calls            enable row level security;
 alter table public.pro_documents    enable row level security;
 
+-- Helpers used by the rules below. They live in a 'private' schema so
+-- they can't be called from the public web API.
+create schema if not exists private;
+revoke all on schema private from public, anon;
+grant usage on schema private to authenticated;
+
 -- Helper: the pro row for whoever is signed in.
-create or replace function public.current_pro_id() returns uuid
+create or replace function private.current_pro_id() returns uuid
 language sql stable security definer set search_path = public
 as $$ select id from public.pros where auth_user_id = auth.uid() $$;
 
@@ -342,53 +348,56 @@ create policy "pros read prices" on public.price_list
 
 -- Lead assignments: a pro sees and updates (status only) their own.
 create policy "pro reads own leads" on public.lead_assignments
-  for select to authenticated using (pro_id = public.current_pro_id());
+  for select to authenticated using (pro_id = private.current_pro_id());
 create policy "pro updates own lead status" on public.lead_assignments
-  for update to authenticated using (pro_id = public.current_pro_id())
-  with check (pro_id = public.current_pro_id());
+  for update to authenticated using (pro_id = private.current_pro_id())
+  with check (pro_id = private.current_pro_id());
 revoke update on public.lead_assignments from authenticated;
 grant update (status, contacted_at, closed_at) on public.lead_assignments to authenticated;
 
 -- Helpers that check access without re-triggering these same rules
 -- (policies that query each other directly would loop forever).
-create or replace function public.current_homeowner_id() returns uuid
+create or replace function private.current_homeowner_id() returns uuid
 language sql stable security definer set search_path = public
 as $$ select id from public.homeowners where auth_user_id = auth.uid() $$;
 
-create or replace function public.pro_has_request(p_request_id uuid) returns boolean
+create or replace function private.pro_has_request(p_request_id uuid) returns boolean
 language sql stable security definer set search_path = public
 as $$ select exists (select 1 from public.lead_assignments
-                     where request_id = p_request_id and pro_id = public.current_pro_id()) $$;
+                     where request_id = p_request_id and pro_id = private.current_pro_id()) $$;
 
-create or replace function public.pro_has_homeowner(p_homeowner_id uuid) returns boolean
+create or replace function private.pro_has_homeowner(p_homeowner_id uuid) returns boolean
 language sql stable security definer set search_path = public
 as $$ select exists (select 1 from public.requests r
                      join public.lead_assignments a on a.request_id = r.id
-                     where r.homeowner_id = p_homeowner_id and a.pro_id = public.current_pro_id()) $$;
+                     where r.homeowner_id = p_homeowner_id and a.pro_id = private.current_pro_id()) $$;
+
+revoke all on all functions in schema private from public, anon;
+grant execute on all functions in schema private to authenticated;
 
 -- Requests and homeowner contact details: only for the pro the lead was assigned to.
 create policy "pro reads assigned requests" on public.requests
-  for select to authenticated using (public.pro_has_request(id));
+  for select to authenticated using (private.pro_has_request(id));
 create policy "pro reads assigned homeowners" on public.homeowners
-  for select to authenticated using (public.pro_has_homeowner(id));
+  for select to authenticated using (private.pro_has_homeowner(id));
 
 -- Homeowners who sign in can see their own profile and requests.
 create policy "homeowner reads own profile" on public.homeowners
   for select to authenticated using (auth_user_id = auth.uid());
 create policy "homeowner reads own requests" on public.requests
-  for select to authenticated using (homeowner_id = public.current_homeowner_id());
+  for select to authenticated using (homeowner_id = private.current_homeowner_id());
 
 -- Money, credits, calls, documents: read-only, own rows.
 create policy "pro reads own ledger" on public.ledger_entries
-  for select to authenticated using (pro_id = public.current_pro_id());
+  for select to authenticated using (pro_id = private.current_pro_id());
 create policy "pro reads own credits" on public.credits
   for select to authenticated using (
     exists (select 1 from public.lead_assignments a
-            where a.id = credits.lead_assignment_id and a.pro_id = public.current_pro_id()));
+            where a.id = credits.lead_assignment_id and a.pro_id = private.current_pro_id()));
 create policy "pro reads own calls" on public.calls
-  for select to authenticated using (pro_id = public.current_pro_id());
+  for select to authenticated using (pro_id = private.current_pro_id());
 create policy "pro reads own documents" on public.pro_documents
-  for select to authenticated using (pro_id = public.current_pro_id());
+  for select to authenticated using (pro_id = private.current_pro_id());
 
 -- ---------------------------------------------------------------------
 -- 6. Starting prices (placeholders from the business plan; edit freely)
