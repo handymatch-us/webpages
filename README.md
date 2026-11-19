@@ -33,3 +33,11 @@ Search the code for `[` and `TODO`:
 - The `tel:` link in the homepage header
 - Form `action` URLs: both forms currently run in demo mode (they show a thank-you message and send nothing). Point them at your lead distribution system or CRM webhook.
 - Privacy policy and terms text, and the consent wording under the homeowner form (have a TCPA attorney review it)
+
+## Database (Supabase)
+
+`supabase/schema.sql` creates the HandyMatch database: homeowners, pros, requests (with TCPA consent proof), lead assignments (one pro per request), a ledger of charges and credits, credits, calls, pro documents, and a starting price list.
+
+To set it up: Supabase dashboard → your project → **SQL Editor** → **New query** → paste the whole file → **Run**. Run it once, on a new project.
+
+Lead routing and credits go through the `assign_lead` and `issue_credit` functions, called from the server with the service role key. Row-level security lets each pro see only their own leads, balance and documents.
