@@ -399,6 +399,20 @@ create policy "pro reads own calls" on public.calls
 create policy "pro reads own documents" on public.pro_documents
   for select to authenticated using (pro_id = private.current_pro_id());
 
+-- Table access. New Supabase projects don't grant these automatically.
+-- Server-side code (Edge Functions with the service role key) gets full access.
+grant select, insert, update, delete on all tables in schema public to service_role;
+grant usage, select on all sequences in schema public to service_role;
+grant execute on function public.assign_lead(uuid, uuid, public.lead_product) to service_role;
+grant execute on function public.issue_credit(uuid, public.credit_reason, boolean, text) to service_role;
+alter default privileges in schema public grant select, insert, update, delete on tables to service_role;
+alter default privileges in schema public grant usage, select on sequences to service_role;
+-- Signed-in users can read; row-level security still limits them to their own rows.
+grant select on public.pros, public.price_list, public.lead_assignments, public.requests,
+  public.homeowners, public.ledger_entries, public.credits, public.calls,
+  public.pro_documents, public.pro_balances to authenticated;
+-- The public (anon) gets nothing: the website form goes through the server function.
+
 -- ---------------------------------------------------------------------
 -- 6. Starting prices (placeholders from the business plan; edit freely)
 -- ---------------------------------------------------------------------
