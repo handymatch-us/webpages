@@ -48,11 +48,9 @@
         </ul>
       </div>
 
-      <!--
-        TODO: point this form at your lead system (boberdoo, LeadsPedia, a CRM webhook, Formspree, etc.)
-        by setting the action attribute. Until then, submissions are only shown as a thank-you message.
-      -->
-      <form class="card-form" id="request-form" action="" method="post" aria-labelledby="request-title" data-demo="true">
+      <!-- Sends to the Supabase function "submit-request" (see assets/site.js). -->
+      <form class="card-form" id="request-form" method="post" aria-labelledby="request-title"
+            data-endpoint="https://qpgwtkvfoenjkvncmtvj.supabase.co/functions/v1/submit-request">
         <h2 id="request-title">What do you need done?</h2>
         <label class="field">Service
           <select name="service" required>
@@ -86,6 +84,10 @@
           <label class="field">Mobile phone
             <input type="tel" name="phone" autocomplete="tel" required>
           </label>
+        </div>
+        <!-- Spam trap: hidden from people, often filled in by bots. -->
+        <div aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden">
+          <label>Website <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
         </div>
         <button class="btn btn-cta btn-block" type="submit">Get matched with a pro</button>
         <!-- Have a TCPA attorney review this wording before launch. -->
