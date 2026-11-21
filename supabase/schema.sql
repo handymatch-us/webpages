@@ -427,16 +427,3 @@ insert into public.price_list (service, product, price_cents) values
   ('furniture_assembly', 'call',         5000),
   ('garage_door',        'premium_call', 6500),
   ('appliance_repair',   'premium_call', 6500);
-
--- ---------------------------------------------------------------------
--- 7. Local news cache (used by the local-news Edge Function only)
--- ---------------------------------------------------------------------
-create table public.local_news_cache (
-  area_key    text primary key,          -- e.g. 'san francisco|CA'
-  city        text not null,
-  state       text not null,
-  articles    jsonb not null default '[]',
-  fetched_at  timestamptz not null default now()
-);
-alter table public.local_news_cache enable row level security;
-grant select, insert, update, delete on public.local_news_cache to service_role;
