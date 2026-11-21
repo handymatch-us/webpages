@@ -47,3 +47,23 @@ Lead routing and credits go through the `assign_lead` and `issue_credit` functio
 `supabase/functions/submit-request/index.ts` is a Supabase Edge Function that receives the homeowner form, checks the fields (service, name, 5-digit ZIP, US mobile number, consent), blocks other websites and simple spam bots, limits each phone number to 5 requests a day, and saves the homeowner and request (with consent text, time, IP and browser) using the service role key. Requests arrive with status `new`.
 
 If you move the site to another domain, add it to `ALLOWED_ORIGINS` in that file and redeploy.
+
+### Local news for signed-in users
+
+`supabase/functions/local-news/index.ts` returns local news for the signed-in user's area:
+
+1. Reads the user's ZIP from their profile (a pro's first service ZIP, or a homeowner's ZIP; pros can pass `?zip=` for another of their own ZIPs).
+2. Looks the ZIP up in the separate **zip-zcta** Supabase project (`zip_zcta` table) to get city, state and ZCTA.
+3. Returns cached news for that city if it's under 3 hours old; otherwise asks NewsData.io (region filter first, keyword search as a fallback) and caches the result in `local_news_cache`.
+
+Only headlines, short summaries and links are returned. Requires a Supabase login token and the secret `NEWSDATA_API_KEY` (Supabase dashboard → Edge Functions → Secrets). Optional secrets: `NEWS_CACHE_HOURS`, `ZIP_ZCTA_URL`, `ZIP_ZCTA_KEY`.
+
+Call it from the app with the user's session token:
+
+```js
+const { data: { session } } = await supabase.auth.getSession();
+const res = await fetch('https://qpgwtkvfoenjkvncmtvj.supabase.co/functions/v1/local-news', {
+  headers: { Authorization: `Bearer ${session.access_token}` }
+});
+const { location, articles } = await res.json();
+```
